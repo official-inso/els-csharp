@@ -36,7 +36,7 @@ namespace Inso.Els.Tests.Unit
                 Id = "u-1",
                 Email = "a@b",
                 Name = "Anna",
-                Extra = new Dictionary<string, string> { ["tenant"] = "acme" },
+                Extra = new Dictionary<string, object?> { ["tenant"] = "acme" },
             };
             var enricher = CreateEnricher(user: user);
 

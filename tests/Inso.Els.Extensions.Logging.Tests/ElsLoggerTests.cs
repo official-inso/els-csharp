@@ -66,16 +66,24 @@ namespace Inso.Els.Extensions.Logging.Tests
             public ElsStats Stats => default;
             public int QueueSize => 0;
 
+            public event EventHandler<ElsStats>? StatsChanged;
+
             public void CaptureError(Exception exception, CaptureOptions? options = null) => Errors.Add((exception, options));
+            public void CaptureError(Exception exception, string? url, ElsLevel? level = null, IDictionary<string, object?>? meta = null, Exception? cause = null)
+                => CaptureError(exception, new CaptureOptions { Url = url, Level = level, Meta = meta, Cause = cause });
             public void CaptureMessage(string message, ElsLevel level, CaptureOptions? options = null) => Messages.Add((message, level, options));
+            public void CaptureMessage(string message, ElsLevel level, string? url, IDictionary<string, object?>? meta = null)
+                => CaptureMessage(message, level, new CaptureOptions { Url = url, Meta = meta });
             public void CaptureEntry(ErrorEntry entry, CaptureOptions? options = null) { }
             public Task SendAsync(Exception exception, CaptureOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SendEntryAsync(ErrorEntry entry, CaptureOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task HealthAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<ElsHealthResult> TryHealthAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new ElsHealthResult { IsHealthy = true });
             public Task FlushAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task CloseAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void SetSessionId(string sessionId) { }
-            public void Dispose() { }
+            public void Dispose() { _ = StatsChanged; }
             public ValueTask DisposeAsync() => default;
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Inso.Els
 {
@@ -72,9 +73,16 @@ namespace Inso.Els
 
         /// <summary>
         /// Fraction of non-critical entries to actually send (0.0 – 1.0).
-        /// Critical-level entries are never sampled out. Default: 1.0.
+        /// Entries at level <see cref="ElsLevel.Critical"/> bypass the filter
+        /// when <see cref="AlwaysCaptureCritical"/> is true (default). Default: 1.0.
         /// </summary>
         public double SampleRate { get; init; } = 1.0;
+
+        /// <summary>
+        /// When true (default), critical-level entries are always captured regardless
+        /// of <see cref="SampleRate"/>. Set to false to subject criticals to sampling too.
+        /// </summary>
+        public bool AlwaysCaptureCritical { get; init; } = true;
 
         // ---------- Hooks ----------
 
@@ -84,6 +92,12 @@ namespace Inso.Els
         /// the hook are caught and forwarded to <see cref="OnError"/>.
         /// </summary>
         public Func<ErrorEntry, ErrorEntry?>? BeforeSend { get; init; }
+
+        /// <summary>
+        /// Asynchronous variant of <see cref="BeforeSend"/>. When both are set, the
+        /// async hook runs first. Use for filters that need I/O (e.g. PII lookup).
+        /// </summary>
+        public Func<ErrorEntry, ValueTask<ErrorEntry?>>? BeforeSendAsync { get; init; }
 
         /// <summary>
         /// Called when the SDK hits an internal error (failed send, disk

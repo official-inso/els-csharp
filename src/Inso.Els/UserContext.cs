@@ -20,6 +20,6 @@ namespace Inso.Els
         public string? Name { get; init; }
 
         /// <summary>Additional user fields. Each pair is added to <c>Meta</c> as <c>user.&lt;key&gt;</c>.</summary>
-        public IReadOnlyDictionary<string, string>? Extra { get; init; }
+        public IReadOnlyDictionary<string, object?>? Extra { get; init; }
     }
 }

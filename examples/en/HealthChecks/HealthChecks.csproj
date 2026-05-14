@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Inso.Els.Examples.HealthChecks</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Inso.Els\Inso.Els.csproj" />
+    <ProjectReference Include="..\..\..\src\Inso.Els.AspNetCore\Inso.Els.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

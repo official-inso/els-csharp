@@ -1,5 +1,11 @@
 # Inso.Els — .NET SDK для ELS
 
+[![NuGet — Inso.Els](https://img.shields.io/nuget/v/Inso.Els.svg?label=Inso.Els)](https://www.nuget.org/packages/Inso.Els)
+[![NuGet — AspNetCore](https://img.shields.io/nuget/v/Inso.Els.AspNetCore.svg?label=Inso.Els.AspNetCore)](https://www.nuget.org/packages/Inso.Els.AspNetCore)
+[![NuGet — Logging](https://img.shields.io/nuget/v/Inso.Els.Extensions.Logging.svg?label=Inso.Els.Extensions.Logging)](https://www.nuget.org/packages/Inso.Els.Extensions.Logging)
+[![CI](https://github.com/official-inso/els-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/official-inso/els-csharp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 .NET SDK для **сервиса логирования ошибок (ELS — Error Logs Service)**.
 Асинхронный батчинг, retry с экспоненциальным backoff, буферизация на диск,
 middleware для ASP.NET Core, провайдер для `Microsoft.Extensions.Logging`.
@@ -97,6 +103,16 @@ builder.Logging.AddEls(o => o.MinLevel = ElsLevel.Warning);
 // Существующий код продолжает работать как обычно:
 _logger.LogError(ex, "пользователь {UserId} не найден", 42);
 ```
+
+## Когда использовать `Sdk`, а когда DI
+
+| Сценарий | Что использовать |
+|---|---|
+| ASP.NET Core, Worker Services и всё, где уже есть `IServiceCollection` | `services.AddEls(...)` — `IElsClient` приходит через constructor injection |
+| Консольные скрипты, разовые утилиты, glue-код, ситуации где DI избыточен | `Sdk.Init(opts)` + `Sdk.CaptureError(...)` |
+| Библиотеки, которые не должны навязывать DI и lifetime потребителю | Принимать `IElsClient` параметром конструктора, host сам его подключит |
+
+Оба пути идут через один `ElsClient` — переключение не меняет wire-формат или поведение.
 
 ## Основные концепции
 

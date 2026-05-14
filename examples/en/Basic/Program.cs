@@ -56,9 +56,10 @@ catch (Exception ex)
         });
 }
 
-// 3. Async message capture.
+// 3. Async message capture — convenience overload with named parameters.
 client.CaptureMessage("memory usage above 80%", ElsLevel.Warning,
-    new CaptureOptions { Url = "/health" }.WithMetaItem("memoryPct", 82.5));
+    url: "/health",
+    meta: new Dictionary<string, object?> { ["memoryPct"] = 82.5 });
 
 // 4. Synchronous send for critical errors.
 try

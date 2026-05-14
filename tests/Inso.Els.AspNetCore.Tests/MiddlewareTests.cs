@@ -19,7 +19,7 @@ namespace Inso.Els.AspNetCore.Tests
         public async Task Middleware_RethrowDefault_ReportsExceptionAndPropagates()
         {
             var captured = new RecordingClient();
-            using var host = await BuildHostAsync(captured, rethrow: true);
+            using var host = await BuildHostAsync(captured, ElsExceptionMode.CaptureAndRethrow);
             var client = host.GetTestClient();
 
             Func<Task> act = () => client.GetAsync("/boom");
@@ -31,15 +31,30 @@ namespace Inso.Els.AspNetCore.Tests
         }
 
         [Fact]
-        public async Task Middleware_RethrowFalse_Returns500AndReports()
+        public async Task Middleware_HandleMode_Returns500AndReports()
         {
             var captured = new RecordingClient();
-            using var host = await BuildHostAsync(captured, rethrow: false);
+            using var host = await BuildHostAsync(captured, ElsExceptionMode.CaptureAndHandle);
             var client = host.GetTestClient();
 
             var response = await client.GetAsync("/boom");
             response.StatusCode.Should().Be(System.Net.HttpStatusCode.InternalServerError);
             captured.Errors.Should().HaveCount(1);
+        }
+
+        [Fact]
+        public async Task Middleware_OnExceptionCallback_IsInvoked()
+        {
+            var captured = new RecordingClient();
+            int callbackInvocations = 0;
+            using var host = await BuildHostAsync(captured, ElsExceptionMode.CaptureAndHandle, onException: (_, _) =>
+            {
+                Interlocked.Increment(ref callbackInvocations);
+                return Task.CompletedTask;
+            });
+
+            await host.GetTestClient().GetAsync("/boom");
+            callbackInvocations.Should().Be(1);
         }
 
         [Fact]
@@ -66,7 +81,10 @@ namespace Inso.Els.AspNetCore.Tests
             options.Meta["http.requestId"].Should().Be("rid-1");
         }
 
-        private static async Task<IHost> BuildHostAsync(IElsClient client, bool rethrow)
+        private static async Task<IHost> BuildHostAsync(
+            IElsClient client,
+            ElsExceptionMode mode,
+            Func<Exception, HttpContext, Task>? onException = null)
         {
             var builder = new HostBuilder()
                 .ConfigureWebHost(web =>
@@ -79,7 +97,11 @@ namespace Inso.Els.AspNetCore.Tests
                     });
                     web.Configure(app =>
                     {
-                        app.UseElsExceptionHandling(rethrow);
+                        app.UseElsExceptionHandling(o =>
+                        {
+                            o.Mode = mode;
+                            o.OnException = onException;
+                        });
                         app.Run(_ => throw new InvalidOperationException("kaboom"));
                     });
                 });
@@ -94,18 +116,24 @@ namespace Inso.Els.AspNetCore.Tests
             public UserContext? User { get; set; }
             public ElsStats Stats => default;
             public int QueueSize => 0;
+            public event EventHandler<ElsStats>? StatsChanged;
 
             public void CaptureError(Exception exception, CaptureOptions? options = null)
                 => Errors.Add((exception, options));
+            public void CaptureError(Exception exception, string? url, ElsLevel? level = null, IDictionary<string, object?>? meta = null, Exception? cause = null)
+                => CaptureError(exception, new CaptureOptions { Url = url, Level = level, Meta = meta, Cause = cause });
             public void CaptureMessage(string message, ElsLevel level, CaptureOptions? options = null) { }
+            public void CaptureMessage(string message, ElsLevel level, string? url, IDictionary<string, object?>? meta = null) { }
             public void CaptureEntry(ErrorEntry entry, CaptureOptions? options = null) { }
             public Task SendAsync(Exception exception, CaptureOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SendEntryAsync(ErrorEntry entry, CaptureOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task HealthAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<ElsHealthResult> TryHealthAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new ElsHealthResult { IsHealthy = true });
             public Task FlushAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task CloseAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public void SetSessionId(string sessionId) { }
-            public void Dispose() { }
+            public void Dispose() { _ = StatsChanged; }
             public ValueTask DisposeAsync() => default;
         }
     }

@@ -21,18 +21,18 @@ namespace Inso.Els
         /// <summary>Entries dropped by the sampling filter.</summary>
         public long Sampled { get; }
 
-        /// <summary>Entries currently sitting in the on-disk buffer.</summary>
-        public long Buffered { get; }
+        /// <summary>Current size of the on-disk buffer in bytes.</summary>
+        public long BufferedBytes { get; }
 
         /// <summary>Creates a stats snapshot.</summary>
-        public ElsStats(long enqueued, long dropped, long sent, long failed, long sampled, long buffered)
+        public ElsStats(long enqueued, long dropped, long sent, long failed, long sampled, long bufferedBytes)
         {
             Enqueued = enqueued;
             Dropped = dropped;
             Sent = sent;
             Failed = failed;
             Sampled = sampled;
-            Buffered = buffered;
+            BufferedBytes = bufferedBytes;
         }
     }
 }

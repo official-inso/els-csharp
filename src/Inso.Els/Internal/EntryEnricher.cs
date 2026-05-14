@@ -108,6 +108,13 @@ namespace Inso.Els.Internal
                 next = next with { Meta = meta };
             }
 
+            // Default URL: better to log "unknown" than to fail server-side validation
+            // when the caller forgot to set one. AppSlug is the closest meaningful identifier.
+            if (string.IsNullOrEmpty(next.Url))
+            {
+                next = next with { Url = !string.IsNullOrEmpty(_options.AppSlug) ? _options.AppSlug! : "unknown" };
+            }
+
             return next;
         }
 

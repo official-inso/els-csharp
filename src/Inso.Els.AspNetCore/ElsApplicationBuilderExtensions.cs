@@ -14,19 +14,29 @@ namespace Inso.Els.AspNetCore
         /// observed.
         /// </summary>
         /// <param name="app">The application builder.</param>
-        /// <param name="rethrow">
-        /// When <c>true</c> (default), the original exception is re-thrown
-        /// after being captured so other middleware can still handle the
-        /// response. When <c>false</c>, the middleware writes a generic
-        /// 500 response itself.
+        /// <param name="configure">
+        /// Optional configuration: set <see cref="ElsExceptionHandlerOptions.Mode"/>
+        /// to choose between rethrow (default) and self-handling, or attach an
+        /// <see cref="ElsExceptionHandlerOptions.OnException"/> callback.
         /// </param>
-        public static IApplicationBuilder UseElsExceptionHandling(this IApplicationBuilder app, bool rethrow = true)
+        public static IApplicationBuilder UseElsExceptionHandling(
+            this IApplicationBuilder app,
+            Action<ElsExceptionHandlerOptions>? configure = null)
         {
             if (app is null) throw new ArgumentNullException(nameof(app));
 
+            var options = new ElsExceptionHandlerOptions();
+            configure?.Invoke(options);
+
             var middleware = app.ApplicationServices.GetRequiredService<ElsExceptionMiddleware>();
-            middleware.Rethrow = rethrow;
+            middleware.Options = options;
             return app.UseMiddleware<ElsExceptionMiddleware>();
         }
+
+        /// <summary>
+        /// Convenience overload for the common case <see cref="ElsExceptionMode.CaptureAndRethrow"/>.
+        /// </summary>
+        public static IApplicationBuilder UseElsExceptionHandling(this IApplicationBuilder app)
+            => app.UseElsExceptionHandling((Action<ElsExceptionHandlerOptions>?)null);
     }
 }

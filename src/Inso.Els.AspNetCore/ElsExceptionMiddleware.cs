@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
@@ -7,9 +6,8 @@ namespace Inso.Els.AspNetCore
 {
     /// <summary>
     /// Captures unhandled exceptions in the ASP.NET Core pipeline and reports
-    /// them to ELS. When <see cref="Rethrow"/> is <c>true</c> (the default),
-    /// the exception is re-thrown so upstream middleware can still handle the
-    /// HTTP response. Otherwise the middleware returns a generic 500 response.
+    /// them to ELS. Behavior is controlled via <see cref="ElsExceptionHandlerOptions"/>
+    /// configured by <c>app.UseElsExceptionHandling(...)</c>.
     /// </summary>
     internal sealed class ElsExceptionMiddleware : IMiddleware
     {
@@ -20,8 +18,11 @@ namespace Inso.Els.AspNetCore
             _client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
-        /// <summary>Whether to re-throw the captured exception. Configured per <c>app.UseElsExceptionHandling</c> call.</summary>
-        public bool Rethrow { get; set; } = true;
+        /// <summary>
+        /// Active options. The <c>UseElsExceptionHandling</c> extension updates
+        /// this before adding the middleware to the pipeline.
+        /// </summary>
+        public ElsExceptionHandlerOptions Options { get; set; } = new ElsExceptionHandlerOptions();
 
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
@@ -31,14 +32,26 @@ namespace Inso.Els.AspNetCore
             }
             catch (Exception ex)
             {
-                var options = new CaptureOptions
+                var captureOptions = new CaptureOptions
                 {
-                    Level = ElsLevel.Critical,
+                    Level = Options.Level,
                 }.WithHttpContext(context);
 
-                _client.CaptureError(ex, options);
+                _client.CaptureError(ex, captureOptions);
 
-                if (Rethrow) throw;
+                if (Options.OnException is not null)
+                {
+                    try
+                    {
+                        await Options.OnException(ex, context).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Hook must not break the pipeline.
+                    }
+                }
+
+                if (Options.Mode == ElsExceptionMode.CaptureAndRethrow) throw;
 
                 if (!context.Response.HasStarted)
                 {

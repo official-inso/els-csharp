@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Inso.Els.Internal;
@@ -31,6 +33,9 @@ namespace Inso.Els
         private readonly object _userLock = new object();
         private UserContext? _user;
 
+        /// <inheritdoc />
+        public event EventHandler<ElsStats>? StatsChanged;
+
         /// <summary>Creates a new client. Validates <paramref name="options"/> eagerly.</summary>
         public ElsClient(ElsOptions options)
         {
@@ -51,9 +56,19 @@ namespace Inso.Els
                 _transport,
                 _diskBuffer,
                 _debug,
-                onSent: count => Interlocked.Add(ref _sent, count),
-                onFailed: count => Interlocked.Add(ref _failed, count),
-                onDropped: () => Interlocked.Increment(ref _dropped));
+                onSent: count => { Interlocked.Add(ref _sent, count); RaiseStatsChanged(); },
+                onFailed: count => { Interlocked.Add(ref _failed, count); RaiseStatsChanged(); },
+                onDropped: () => { Interlocked.Increment(ref _dropped); RaiseStatsChanged(); });
+        }
+
+        /// <summary>
+        /// Convenience constructor for the common case where only the endpoint,
+        /// API key, and optional application slug are configured. Everything
+        /// else is taken from defaults.
+        /// </summary>
+        public ElsClient(string endpoint, string apiKey, string? appSlug = null)
+            : this(new ElsOptions { Endpoint = endpoint, ApiKey = apiKey, AppSlug = appSlug })
+        {
         }
 
         /// <inheritdoc />
@@ -95,8 +110,12 @@ namespace Inso.Els
             if (IsDisposed) return;
 
             var entry = _enricher.FromException(exception);
-            Enqueue(entry, options);
+            EnqueueFireAndForget(entry, options);
         }
+
+        /// <inheritdoc />
+        public void CaptureError(Exception exception, string? url, ElsLevel? level = null, IDictionary<string, object?>? meta = null, Exception? cause = null)
+            => CaptureError(exception, BuildOptions(url, level, meta, cause));
 
         /// <inheritdoc />
         public void CaptureMessage(string message, ElsLevel level, CaptureOptions? options = null)
@@ -104,15 +123,19 @@ namespace Inso.Els
             if (IsDisposed) return;
 
             var entry = _enricher.FromMessage(message ?? string.Empty, level);
-            Enqueue(entry, options);
+            EnqueueFireAndForget(entry, options);
         }
+
+        /// <inheritdoc />
+        public void CaptureMessage(string message, ElsLevel level, string? url, IDictionary<string, object?>? meta = null)
+            => CaptureMessage(message, level, BuildOptions(url, level: null, meta));
 
         /// <inheritdoc />
         public void CaptureEntry(ErrorEntry entry, CaptureOptions? options = null)
         {
             if (entry is null) return;
             if (IsDisposed) return;
-            Enqueue(entry, options);
+            EnqueueFireAndForget(entry, options);
         }
 
         /// <inheritdoc />
@@ -131,10 +154,11 @@ namespace Inso.Els
             if (entry is null) throw new ArgumentNullException(nameof(entry));
             ThrowIfDisposed();
 
-            var prepared = Prepare(entry, options, isSync: true);
+            var prepared = await PrepareAsync(entry, options, isSync: true, cancellationToken).ConfigureAwait(false);
             if (prepared is null) return; // dropped by hooks / filters
             await _transport.SendSingleAsync(prepared, cancellationToken).ConfigureAwait(false);
             Interlocked.Increment(ref _sent);
+            RaiseStatsChanged();
         }
 
         /// <inheritdoc />
@@ -142,6 +166,44 @@ namespace Inso.Els
         {
             ThrowIfDisposed();
             return _transport.HealthAsync(cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public async Task<ElsHealthResult> TryHealthAsync(CancellationToken cancellationToken = default)
+        {
+            if (IsDisposed)
+            {
+                return new ElsHealthResult { IsHealthy = false, Error = "Client disposed" };
+            }
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                await _transport.HealthAsync(cancellationToken).ConfigureAwait(false);
+                return new ElsHealthResult { IsHealthy = true, StatusCode = 200, Latency = sw.Elapsed };
+            }
+            catch (ElsSendException ex)
+            {
+                return new ElsHealthResult
+                {
+                    IsHealthy = false,
+                    StatusCode = ex.StatusCode == 0 ? null : ex.StatusCode,
+                    Latency = sw.Elapsed,
+                    Error = ex.Message,
+                };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return new ElsHealthResult
+                {
+                    IsHealthy = false,
+                    Latency = sw.Elapsed,
+                    Error = ex.Message,
+                };
+            }
         }
 
         /// <inheritdoc />
@@ -195,9 +257,37 @@ namespace Inso.Els
             if (IsDisposed) throw new ObjectDisposedException(nameof(ElsClient));
         }
 
-        private void Enqueue(ErrorEntry entry, CaptureOptions? options)
+        private static CaptureOptions BuildOptions(string? url, ElsLevel? level, IDictionary<string, object?>? meta, Exception? cause = null)
         {
-            var prepared = Prepare(entry, options, isSync: false);
+            return new CaptureOptions
+            {
+                Url = url,
+                Level = level,
+                Meta = meta,
+                Cause = cause,
+            };
+        }
+
+        private void EnqueueFireAndForget(ErrorEntry entry, CaptureOptions? options)
+        {
+            // The fire-and-forget capture path uses the async pipeline because
+            // BeforeSendAsync may need to run. We bridge to a non-awaited Task
+            // and route hook failures into OnError to mirror Capture semantics.
+            _ = EnqueueAsync(entry, options);
+        }
+
+        private async Task EnqueueAsync(ErrorEntry entry, CaptureOptions? options)
+        {
+            ErrorEntry? prepared;
+            try
+            {
+                prepared = await PrepareAsync(entry, options, isSync: false, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                SafeOnError(ex);
+                return;
+            }
             if (prepared is null) return;
             if (_worker.TryEnqueue(prepared))
             {
@@ -206,10 +296,11 @@ namespace Inso.Els
             else
             {
                 Interlocked.Increment(ref _dropped);
+                RaiseStatsChanged();
             }
         }
 
-        private ErrorEntry? Prepare(ErrorEntry entry, CaptureOptions? options, bool isSync)
+        private async Task<ErrorEntry?> PrepareAsync(ErrorEntry entry, CaptureOptions? options, bool isSync, CancellationToken cancellationToken)
         {
             ErrorEntry enriched;
             try
@@ -229,11 +320,29 @@ namespace Inso.Els
                 return null;
             }
 
-            if (!isSync && level != ElsLevel.Critical && _options.SampleRate < 1.0)
+            bool exemptFromSampling = level == ElsLevel.Critical && _options.AlwaysCaptureCritical;
+            if (!isSync && !exemptFromSampling && _options.SampleRate < 1.0)
             {
                 if (_random.NextDouble() >= _options.SampleRate)
                 {
                     Interlocked.Increment(ref _sampled);
+                    RaiseStatsChanged();
+                    return null;
+                }
+            }
+
+            // Async hook runs first when both are configured.
+            if (_options.BeforeSendAsync is not null)
+            {
+                try
+                {
+                    var result = await _options.BeforeSendAsync(enriched).ConfigureAwait(false);
+                    if (result is null) return null;
+                    enriched = result;
+                }
+                catch (Exception ex)
+                {
+                    SafeOnError(ex);
                     return null;
                 }
             }
@@ -254,6 +363,14 @@ namespace Inso.Els
             }
 
             return enriched;
+        }
+
+        private void RaiseStatsChanged()
+        {
+            var handler = StatsChanged;
+            if (handler is null) return;
+            try { handler(this, Stats); }
+            catch (Exception ex) { _debug.Write("StatsChanged handler threw: {0}", ex.Message); }
         }
 
         private void SafeOnError(Exception ex)

@@ -57,9 +57,10 @@ catch (Exception ex)
         });
 }
 
-// 3. Асинхронный захват текстового сообщения.
+// 3. Асинхронный захват сообщения — короткая перегрузка с named-параметрами.
 client.CaptureMessage("использование памяти выше 80%", ElsLevel.Warning,
-    new CaptureOptions { Url = "/health" }.WithMetaItem("memoryPct", 82.5));
+    url: "/health",
+    meta: new Dictionary<string, object?> { ["memoryPct"] = 82.5 });
 
 // 4. Синхронная отправка критической ошибки (ожидает подтверждение сервера).
 try

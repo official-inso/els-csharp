@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
+using Inso.Els.Internal;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Inso.Els.AspNetCore
 {
@@ -25,15 +27,15 @@ namespace Inso.Els.AspNetCore
                 return new ElsClient(builder.Build());
             });
 
-            services.AddSingleton<ElsExceptionMiddleware>();
-            services.AddHostedService<ElsHostedService>();
-
-            return services;
+            return RegisterShared(services);
         }
 
         /// <summary>
         /// Registers <see cref="IElsClient"/> with options bound from an
-        /// <see cref="IConfiguration"/> section (e.g. <c>"Els"</c>).
+        /// <see cref="IConfiguration"/> section (e.g. <c>"Els"</c>). Strings
+        /// like <c>"100MB"</c> are accepted for <c>MaxBufferFileSize</c>. Invalid
+        /// values (e.g. unknown <c>MinLevel</c>) throw
+        /// <see cref="ElsConfigurationException"/> at startup.
         /// </summary>
         public static IServiceCollection AddEls(this IServiceCollection services, IConfiguration section)
         {
@@ -43,14 +45,93 @@ namespace Inso.Els.AspNetCore
             return services.AddEls(builder => Bind(section, builder));
         }
 
+        /// <summary>
+        /// Registers <see cref="IElsClient"/> using a pre-built <see cref="ElsOptions"/>.
+        /// Useful when options are produced by <see cref="IOptions{TOptions}"/> pattern
+        /// elsewhere (e.g. <c>services.Configure&lt;ElsOptions&gt;(config.GetSection("Els"))</c>).
+        /// </summary>
+        public static IServiceCollection AddElsFromOptions(this IServiceCollection services)
+        {
+            if (services is null) throw new ArgumentNullException(nameof(services));
+
+            services.AddSingleton<IElsClient>(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<ElsOptions>>().Value;
+                return new ElsClient(opts);
+            });
+
+            return RegisterShared(services);
+        }
+
+        private static IServiceCollection RegisterShared(IServiceCollection services)
+        {
+            services.AddSingleton<ElsExceptionMiddleware>();
+            services.AddHostedService<ElsHostedService>();
+            return services;
+        }
+
         private static void Bind(IConfiguration section, ElsOptionsBuilder b)
         {
             string? Get(string key) => section[key];
-            int GetInt(string key, int fallback) => int.TryParse(Get(key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : fallback;
-            long GetLong(string key, long fallback) => long.TryParse(Get(key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : fallback;
-            double GetDouble(string key, double fallback) => double.TryParse(Get(key), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : fallback;
-            bool GetBool(string key, bool fallback) => bool.TryParse(Get(key), out var v) ? v : fallback;
-            TimeSpan GetTs(string key, TimeSpan fallback) => TimeSpan.TryParse(Get(key), CultureInfo.InvariantCulture, out var v) ? v : fallback;
+
+            int RequireInt(string key, int fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) return v;
+                throw new ElsConfigurationException($"Els:{key} must be an integer (got '{s}').");
+            }
+
+            double RequireDouble(string key, double fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) return v;
+                throw new ElsConfigurationException($"Els:{key} must be a number (got '{s}').");
+            }
+
+            bool RequireBool(string key, bool fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                if (bool.TryParse(s, out var v)) return v;
+                throw new ElsConfigurationException($"Els:{key} must be true or false (got '{s}').");
+            }
+
+            TimeSpan RequireTimeSpan(string key, TimeSpan fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out var v)) return v;
+                throw new ElsConfigurationException($"Els:{key} must be a TimeSpan (e.g. \"00:00:10\", got '{s}').");
+            }
+
+            long RequireSize(string key, long fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                if (SizeParser.TryParse(s, out var v)) return v;
+                throw new ElsConfigurationException($"Els:{key} must be a byte size (e.g. \"100MB\", got '{s}').");
+            }
+
+            ElsLevel? RequireLevel(string key, ElsLevel? fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                var parsed = ElsLevelExtensions.Parse(s);
+                if (parsed is null)
+                    throw new ElsConfigurationException($"Els:{key} must be one of debug/info/warning/error/critical (got '{s}').");
+                return parsed;
+            }
+
+            ElsAuthScheme RequireAuth(string key, ElsAuthScheme fallback)
+            {
+                var s = Get(key);
+                if (string.IsNullOrEmpty(s)) return fallback;
+                if (string.Equals(s, "Bearer", StringComparison.OrdinalIgnoreCase)) return ElsAuthScheme.Bearer;
+                if (string.Equals(s, "ApiKeyHeader", StringComparison.OrdinalIgnoreCase)) return ElsAuthScheme.ApiKeyHeader;
+                throw new ElsConfigurationException($"Els:{key} must be Bearer or ApiKeyHeader (got '{s}').");
+            }
 
             b.Endpoint = Get("Endpoint") ?? b.Endpoint;
             b.ApiKey = Get("ApiKey") ?? b.ApiKey;
@@ -58,24 +139,20 @@ namespace Inso.Els.AspNetCore
             b.DeploymentEnv = Get("DeploymentEnv") ?? b.DeploymentEnv;
             b.ServiceName = Get("ServiceName") ?? b.ServiceName;
             b.AppVersion = Get("AppVersion") ?? b.AppVersion;
-            b.BatchSize = GetInt("BatchSize", b.BatchSize);
-            b.BatchInterval = GetTs("BatchInterval", b.BatchInterval);
-            b.BufferSize = GetInt("BufferSize", b.BufferSize);
-            b.MaxRetries = GetInt("MaxRetries", b.MaxRetries);
-            b.RetryBaseDelay = GetTs("RetryBaseDelay", b.RetryBaseDelay);
-            b.Timeout = GetTs("Timeout", b.Timeout);
-            b.FlushTimeout = GetTs("FlushTimeout", b.FlushTimeout);
+            b.BatchSize = RequireInt("BatchSize", b.BatchSize);
+            b.BatchInterval = RequireTimeSpan("BatchInterval", b.BatchInterval);
+            b.BufferSize = RequireInt("BufferSize", b.BufferSize);
+            b.MaxRetries = RequireInt("MaxRetries", b.MaxRetries);
+            b.RetryBaseDelay = RequireTimeSpan("RetryBaseDelay", b.RetryBaseDelay);
+            b.Timeout = RequireTimeSpan("Timeout", b.Timeout);
+            b.FlushTimeout = RequireTimeSpan("FlushTimeout", b.FlushTimeout);
             b.BufferDir = Get("BufferDir") ?? b.BufferDir;
-            b.MaxBufferFileSize = GetLong("MaxBufferFileSize", b.MaxBufferFileSize);
+            b.MaxBufferFileSize = RequireSize("MaxBufferFileSize", b.MaxBufferFileSize);
             b.BufferFileName = Get("BufferFileName") ?? b.BufferFileName;
-            b.MinLevel = ElsLevelExtensions.Parse(Get("MinLevel")) ?? b.MinLevel;
-            b.SampleRate = GetDouble("SampleRate", b.SampleRate);
-            b.Debug = GetBool("Debug", b.Debug);
-
-            if (string.Equals(Get("AuthScheme"), "ApiKeyHeader", StringComparison.OrdinalIgnoreCase))
-            {
-                b.AuthScheme = ElsAuthScheme.ApiKeyHeader;
-            }
+            b.MinLevel = RequireLevel("MinLevel", b.MinLevel);
+            b.SampleRate = RequireDouble("SampleRate", b.SampleRate);
+            b.Debug = RequireBool("Debug", b.Debug);
+            b.AuthScheme = RequireAuth("AuthScheme", b.AuthScheme);
         }
     }
 }

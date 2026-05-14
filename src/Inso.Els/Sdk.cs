@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -67,9 +68,17 @@ namespace Inso.Els
         public static void CaptureError(Exception exception, CaptureOptions? options = null)
             => Current?.CaptureError(exception, options);
 
+        /// <summary>Convenience overload mirroring the matching method on <see cref="IElsClient"/>.</summary>
+        public static void CaptureError(Exception exception, string? url, ElsLevel? level = null, IDictionary<string, object?>? meta = null, Exception? cause = null)
+            => Current?.CaptureError(exception, url, level, meta, cause);
+
         /// <summary>Captures a message via the ambient client. No-op when not initialized.</summary>
         public static void CaptureMessage(string message, ElsLevel level, CaptureOptions? options = null)
             => Current?.CaptureMessage(message, level, options);
+
+        /// <summary>Convenience overload mirroring <see cref="IElsClient.CaptureMessage(string, ElsLevel, string?, IDictionary{string, object?}?)"/>.</summary>
+        public static void CaptureMessage(string message, ElsLevel level, string? url, IDictionary<string, object?>? meta = null)
+            => Current?.CaptureMessage(message, level, url, meta);
 
         /// <summary>Captures a pre-built entry via the ambient client.</summary>
         public static void CaptureEntry(ErrorEntry entry, CaptureOptions? options = null)

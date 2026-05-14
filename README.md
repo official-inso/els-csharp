@@ -1,5 +1,11 @@
 # Inso.Els — .NET SDK for ELS
 
+[![NuGet — Inso.Els](https://img.shields.io/nuget/v/Inso.Els.svg?label=Inso.Els)](https://www.nuget.org/packages/Inso.Els)
+[![NuGet — AspNetCore](https://img.shields.io/nuget/v/Inso.Els.AspNetCore.svg?label=Inso.Els.AspNetCore)](https://www.nuget.org/packages/Inso.Els.AspNetCore)
+[![NuGet — Logging](https://img.shields.io/nuget/v/Inso.Els.Extensions.Logging.svg?label=Inso.Els.Extensions.Logging)](https://www.nuget.org/packages/Inso.Els.Extensions.Logging)
+[![CI](https://github.com/official-inso/els-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/official-inso/els-csharp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 .NET SDK for the **Error Logs Service (ELS)**. Asynchronous batching, retry
 with exponential backoff, disk-based buffering, ASP.NET Core middleware,
 `Microsoft.Extensions.Logging` provider — wire-compatible with the
@@ -97,6 +103,16 @@ builder.Logging.AddEls(o => o.MinLevel = ElsLevel.Warning);
 // Existing code keeps working:
 _logger.LogError(ex, "user {UserId} not found", 42);
 ```
+
+## When to use `Sdk` vs dependency injection
+
+| Scenario | Use |
+|---|---|
+| ASP.NET Core, Worker Services, anything that already has `IServiceCollection` | `services.AddEls(...)` — get `IElsClient` via constructor injection |
+| Console scripts, one-off tools, sample / glue code, scenarios where DI is overkill | `Sdk.Init(opts)` + `Sdk.CaptureError(...)` |
+| Libraries that should not impose lifetime / DI choices on consumers | Take `IElsClient` as a constructor parameter, let the host wire it up |
+
+Both styles route through the same `ElsClient` — switching does not change wire format or behavior.
 
 ## Core concepts
 
