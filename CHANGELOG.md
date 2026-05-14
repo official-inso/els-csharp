@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-14
+
+### Added
+
+- `Sdk.ClientReplaced` event — raised when `Sdk.Init` replaces a previous
+  ambient client. Lets you observe hot-reload scenarios.
+- `ElsOptions.AutoFlushOnExit` (default `true`) — when using `Sdk.Init`, the
+  SDK registers `AppDomain.ProcessExit` and drains pending entries on
+  shutdown automatically.
+- `ElsOptions.Validate()` — returns an `IReadOnlyList<string>` describing
+  configuration problems without throwing. Useful for startup linting / a
+  custom health endpoint.
+- `services.AddHealthChecks().AddEls(timeout: TimeSpan.FromSeconds(2))` — the
+  health check now supports a per-probe timeout so a stuck network call
+  cannot freeze the framework's probe deadline.
+- Partial `JsonSerializerContext` (`Inso.Els.Internal.ElsJsonContext`) for
+  `ErrorEntry` and `BatchRequestDto`. Active on `net8.0`+ and combined with
+  the reflection-based resolver so the polymorphic `Meta` dictionary keeps
+  working unchanged.
+
+### Changed
+
+- `ElsClient.Dispose` and `Sdk.Close` now hop off any captured
+  `SynchronizationContext` (`Task.Run(...).GetAwaiter().GetResult()`) to
+  avoid deadlocks in WPF / WinForms / xUnit's `AsyncTestSyncContext`.
+- `Capture*` named-args overloads accept an optional `cause` exception that
+  is flattened into `meta["error.causes"]`.
+- `ElsExceptionMiddleware` now reports failures of the user-supplied
+  `OnException` callback as a separate ELS entry instead of swallowing them
+  silently.
+
 ## [0.2.0] - 2026-05-14
 
 ### Added
@@ -58,5 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `EntryEnricher` no longer mutates caller-provided `Meta` dictionaries.
 
-[Unreleased]: https://github.com/official-inso/els-csharp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/official-inso/els-csharp/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/official-inso/els-csharp/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/official-inso/els-csharp/compare/v0.1.0...v0.2.0

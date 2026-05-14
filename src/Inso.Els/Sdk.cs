@@ -14,6 +14,7 @@ namespace Inso.Els
     public static class Sdk
     {
         private static IElsClient? _current;
+        private static bool _processExitRegistered;
         private static readonly object _gate = new object();
 
         /// <summary>The current ambient client, or <c>null</c> if <see cref="Init"/> was not called.</summary>
@@ -23,9 +24,22 @@ namespace Inso.Els
         }
 
         /// <summary>
+        /// Raised whenever <see cref="Init"/> replaces an existing ambient
+        /// client. The argument is the *previous* client (already closed by
+        /// the time the event fires). Useful for telemetry / debug logs in
+        /// hot-reload scenarios. Handlers must not throw.
+        /// </summary>
+        public static event EventHandler<IElsClient>? ClientReplaced;
+
+        /// <summary>
         /// Initializes the ambient client. If a previous client exists, it is
-        /// closed first (best-effort). Throws <see cref="ElsConfigurationException"/>
-        /// when <paramref name="options"/> are invalid.
+        /// closed first (best-effort) and <see cref="ClientReplaced"/> fires.
+        /// When <see cref="ElsOptions.AutoFlushOnExit"/> is <c>true</c> (default),
+        /// an <c>AppDomain.ProcessExit</c> hook is registered on the first
+        /// call to drain pending entries on shutdown.
+        ///
+        /// Throws <see cref="ElsConfigurationException"/> when
+        /// <paramref name="options"/> are invalid.
         /// </summary>
         public static void Init(ElsOptions options)
         {
@@ -36,10 +50,16 @@ namespace Inso.Els
             {
                 previous = _current;
                 _current = next;
+                if (options.AutoFlushOnExit && !_processExitRegistered)
+                {
+                    AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+                    _processExitRegistered = true;
+                }
             }
             if (previous is not null)
             {
                 try { previous.CloseAsync().GetAwaiter().GetResult(); } catch { /* swallow */ }
+                try { ClientReplaced?.Invoke(null, previous); } catch { /* swallow */ }
             }
         }
 
@@ -58,10 +78,17 @@ namespace Inso.Els
             }
         }
 
-        /// <summary>Synchronously closes the ambient client.</summary>
+        /// <summary>
+        /// Synchronously closes the ambient client. Blocks the calling thread
+        /// until shutdown completes or <see cref="ElsOptions.FlushTimeout"/>
+        /// elapses inside the worker. Safe to call from console / worker
+        /// shutdown paths; in UI sync-contexts prefer <see cref="CloseAsync"/>.
+        /// </summary>
         public static void Close()
         {
-            CloseAsync().GetAwaiter().GetResult();
+            // Detach from any captured SyncContext to keep the call safe in
+            // scenarios with a non-default SynchronizationContext (e.g. WPF).
+            Task.Run(() => CloseAsync()).GetAwaiter().GetResult();
         }
 
         /// <summary>Captures an exception via the ambient client. No-op when not initialized.</summary>
@@ -109,6 +136,11 @@ namespace Inso.Els
             }
             if (exception.InnerException is not null) return IsRetryable(exception.InnerException);
             return false;
+        }
+
+        private static void OnProcessExit(object? sender, EventArgs e)
+        {
+            try { Close(); } catch { /* swallow — process is exiting */ }
         }
     }
 }

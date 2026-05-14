@@ -18,6 +18,15 @@ namespace Inso.Els.Internal
             };
             opts.Converters.Add(new ElsLevelJsonConverter());
             opts.Converters.Add(new ElsSourceJsonConverter());
+
+#if NET8_0_OR_GREATER
+            // Plug in the source-generated metadata for top-level payload
+            // types. Falling back to the reflection-based default resolver
+            // keeps the Meta dictionary working without forcing every
+            // possible value type to be pre-registered.
+            opts.TypeInfoResolverChain.Insert(0, ElsJsonContext.Default);
+#endif
+
             return opts;
         }
     }

@@ -45,9 +45,14 @@ namespace Inso.Els.AspNetCore
                     {
                         await Options.OnException(ex, context).ConfigureAwait(false);
                     }
-                    catch
+                    catch (Exception hookEx)
                     {
-                        // Hook must not break the pipeline.
+                        // Hook must not break the pipeline, but operators
+                        // should still see the failure: capture it ourselves
+                        // so it lands in the ELS dashboard.
+                        _client.CaptureError(hookEx,
+                            url: "Inso.Els.AspNetCore/OnException",
+                            level: ElsLevel.Warning);
                     }
                 }
 

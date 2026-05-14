@@ -227,12 +227,19 @@ namespace Inso.Els
             }
         }
 
-        /// <summary>Synchronous dispose. Blocks up to <see cref="ElsOptions.FlushTimeout"/>.</summary>
+        /// <summary>
+        /// Synchronous dispose. Blocks up to <see cref="ElsOptions.FlushTimeout"/>.
+        /// In code that runs under a <c>SynchronizationContext</c> (WPF, WinForms,
+        /// xUnit's <c>AsyncTestSyncContext</c>), prefer <c>await DisposeAsync()</c>
+        /// to avoid the deadlock that <c>GetAwaiter().GetResult()</c> can cause.
+        /// </summary>
         public void Dispose()
         {
             try
             {
-                CloseAsync().GetAwaiter().GetResult();
+                // Detach from any captured SynchronizationContext to make
+                // the sync wait safe in UI / test contexts.
+                Task.Run(() => CloseAsync()).GetAwaiter().GetResult();
             }
             catch
             {

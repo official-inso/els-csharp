@@ -127,6 +127,44 @@ namespace Inso.Els
         /// <summary>Where verbose logs go when <see cref="Debug"/> is on. Default: <see cref="Console.Error"/>.</summary>
         public TextWriter? DebugWriter { get; init; }
 
+        /// <summary>
+        /// When <see cref="Sdk.Init(ElsOptions)"/> is used and this is <c>true</c>,
+        /// the SDK registers <c>AppDomain.ProcessExit</c> to call
+        /// <see cref="Sdk.Close"/> automatically. Default: <c>true</c>.
+        /// Set to <c>false</c> if you manage shutdown yourself or if your host
+        /// already calls <see cref="Sdk.CloseAsync(System.Threading.CancellationToken)"/>.
+        /// Ignored when constructing <see cref="ElsClient"/> directly.
+        /// </summary>
+        public bool AutoFlushOnExit { get; init; } = true;
+
+        /// <summary>
+        /// Inspects this <see cref="ElsOptions"/> and returns a list of problems
+        /// found. Empty list = configuration is acceptable. Unlike the
+        /// constructor of <see cref="ElsClient"/>, this method does not throw —
+        /// callers can use it for startup linting or health endpoints.
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<string> Validate()
+        {
+            var issues = new System.Collections.Generic.List<string>();
+            if (string.IsNullOrWhiteSpace(Endpoint)) issues.Add("Endpoint is required.");
+            if (string.IsNullOrWhiteSpace(ApiKey)) issues.Add("ApiKey is required.");
+            if (!string.IsNullOrEmpty(Endpoint) && !Uri.TryCreate(Endpoint, UriKind.Absolute, out _))
+                issues.Add($"Endpoint '{Endpoint}' is not a valid absolute URI.");
+            if (BatchSize <= 0) issues.Add("BatchSize must be positive.");
+            if (BufferSize <= 0) issues.Add("BufferSize must be positive.");
+            if (MaxRetries < 0) issues.Add("MaxRetries must not be negative.");
+            if (BatchInterval <= TimeSpan.Zero) issues.Add("BatchInterval must be positive.");
+            if (RetryBaseDelay <= TimeSpan.Zero) issues.Add("RetryBaseDelay must be positive.");
+            if (Timeout <= TimeSpan.Zero) issues.Add("Timeout must be positive.");
+            if (FlushTimeout <= TimeSpan.Zero) issues.Add("FlushTimeout must be positive.");
+            if (MaxBufferFileSize <= 0) issues.Add("MaxBufferFileSize must be positive.");
+            if (double.IsNaN(SampleRate) || SampleRate < 0.0 || SampleRate > 1.0)
+                issues.Add($"SampleRate must be in [0.0, 1.0] (got {SampleRate}).");
+            if (!string.IsNullOrEmpty(AppVersion) && AppVersion!.Length > 128)
+                issues.Add($"AppVersion must be at most 128 characters (got {AppVersion.Length}).");
+            return issues;
+        }
+
         // ---------- Internal ----------
 
         internal ElsOptions Normalize()

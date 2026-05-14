@@ -227,11 +227,68 @@ new ElsOptions
 }
 ```
 
+### Ограничения биндинга из `IConfiguration`
+
+`services.AddEls(IConfiguration)` биндит все примитивы (`Endpoint`, `ApiKey`,
+batching, retry, sampling, `MinLevel`, `MaxBufferFileSize` строкой `"100MB"`,
+и т.д.) и бросает `ElsConfigurationException` на некорректное значение.
+
+**Делегаты нельзя связать из `appsettings.json`** — `BeforeSend`,
+`BeforeSendAsync`, `OnError`, `HttpClient` нужно задавать кодом. Чистый
+паттерн — комбинировать оба способа:
+
+```csharp
+services.AddEls(builder =>
+{
+    // примитивы из конфига
+    builder.Endpoint = builder.Configuration["Els:Endpoint"]!;
+    builder.ApiKey   = builder.Configuration["Els:ApiKey"]!;
+
+    // делегаты из кода
+    builder.OnError = ex => logger.LogWarning(ex, "ELS internal error");
+    builder.BeforeSendAsync = async entry =>
+    {
+        await Task.Yield();
+        return entry with { Message = pii.Redact(entry.Message) };
+    };
+});
+```
+
+Опции можно прелинтовать на старте:
+
+```csharp
+var issues = options.Validate();
+if (issues.Count > 0) throw new InvalidOperationException(string.Join("; ", issues));
+```
+
+## Шпаргалка
+
+| Что нужно | Как |
+|---|---|
+| Быстрый захват в консоли | `new ElsClient(endpoint, key, appSlug)` + `Sdk` facade |
+| ASP.NET Core | `services.AddEls(...)` + `app.UseElsExceptionHandling()` |
+| `Microsoft.Extensions.Logging` | `builder.Logging.AddEls(o => o.MinLevel = ElsLevel.Warning)` |
+| Liveness probe | `services.AddHealthChecks().AddEls(timeout: TimeSpan.FromSeconds(2))` |
+| Без 500 от middleware | `app.UseElsExceptionHandling(o => o.Mode = ElsExceptionMode.CaptureAndHandle)` |
+| `IOptions<>` биндинг | `services.Configure<ElsOptions>(section)` + `services.AddElsFromOptions()` |
+| Маскирование PII | `ElsOptions.BeforeSend` (sync) или `BeforeSendAsync` (I/O hook) |
+| Сэмплинг без потери critical | `SampleRate = 0.1` (с `AlwaysCaptureCritical = true`) |
+| Подписаться на внутренние метрики | `client.StatsChanged += (_, s) => ...` |
+
 ## Примеры
 
 - [Базовый (EN)](examples/en/Basic) / [Базовый (RU)](examples/ru/Basic)
 - [Middleware для ASP.NET Core (EN)](examples/en/Middleware) / [(RU)](examples/ru/Middleware)
 - [ILogger (EN)](examples/en/Logging) / [(RU)](examples/ru/Logging)
+- [Минимальный quick-start (EN)](examples/en/MinimalQuickstart) / [(RU)](examples/ru/MinimalQuickstart)
+- [Static facade (EN)](examples/en/StaticFacade) / [(RU)](examples/ru/StaticFacade)
+- [Health checks (EN)](examples/en/HealthChecks) / [(RU)](examples/ru/HealthChecks)
+- [Worker (EN)](examples/en/Worker) / [(RU)](examples/ru/Worker)
+- [Фильтрация (EN)](examples/en/Filtering) / [(RU)](examples/ru/Filtering)
+- [Multi-tenant (EN)](examples/en/MultiTenant) / [(RU)](examples/ru/MultiTenant)
+- [Custom HttpClient (EN)](examples/en/CustomHttpClient) / [(RU)](examples/ru/CustomHttpClient)
+- [AOT-консоль (EN)](examples/en/AotConsole) / [(RU)](examples/ru/AotConsole)
+- [Polly resilience (EN)](examples/en/Resilience) / [(RU)](examples/ru/Resilience)
 
 ## Справочник полей
 

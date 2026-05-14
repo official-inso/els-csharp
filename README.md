@@ -229,11 +229,68 @@ new ElsOptions
 }
 ```
 
+### Binding limits from `IConfiguration`
+
+`services.AddEls(IConfiguration)` binds all primitive values (`Endpoint`,
+`ApiKey`, batching, retry, sampling, `MinLevel`, `MaxBufferFileSize` byte
+strings, etc.) and throws `ElsConfigurationException` on a malformed value.
+
+**Delegate-typed options cannot be bound from `appsettings.json`** —
+`BeforeSend`, `BeforeSendAsync`, `OnError`, and `HttpClient` have to be
+provided programmatically. The cleanest pattern is to combine both forms:
+
+```csharp
+services.AddEls(builder =>
+{
+    // primitives from config
+    builder.Endpoint = builder.Configuration["Els:Endpoint"]!;
+    builder.ApiKey   = builder.Configuration["Els:ApiKey"]!;
+
+    // delegates from code
+    builder.OnError = ex => logger.LogWarning(ex, "ELS internal error");
+    builder.BeforeSendAsync = async entry =>
+    {
+        await Task.Yield();
+        return entry with { Message = pii.Redact(entry.Message) };
+    };
+});
+```
+
+You can also pre-validate options at startup:
+
+```csharp
+var issues = options.Validate();
+if (issues.Count > 0) throw new InvalidOperationException(string.Join("; ", issues));
+```
+
+## Quick reference
+
+| Need | Use |
+|---|---|
+| Quick console capture | `new ElsClient(endpoint, key, appSlug)` + `Sdk` facade |
+| ASP.NET Core | `services.AddEls(...)` + `app.UseElsExceptionHandling()` |
+| `Microsoft.Extensions.Logging` | `builder.Logging.AddEls(o => o.MinLevel = ElsLevel.Warning)` |
+| Liveness probe | `services.AddHealthChecks().AddEls(timeout: TimeSpan.FromSeconds(2))` |
+| Suppress 500 from the middleware | `app.UseElsExceptionHandling(o => o.Mode = ElsExceptionMode.CaptureAndHandle)` |
+| `IOptions<>` binding | `services.Configure<ElsOptions>(section)` + `services.AddElsFromOptions()` |
+| PII masking | `ElsOptions.BeforeSend` (sync) or `BeforeSendAsync` (I/O hook) |
+| Sampling without losing criticals | `SampleRate = 0.1` (keeps `AlwaysCaptureCritical = true`) |
+| Watch internal stats | `client.StatsChanged += (_, s) => ...` |
+
 ## Examples
 
 - [Basic (EN)](examples/en/Basic) / [Basic (RU)](examples/ru/Basic)
 - [ASP.NET Core middleware (EN)](examples/en/Middleware) / [(RU)](examples/ru/Middleware)
 - [ILogger integration (EN)](examples/en/Logging) / [(RU)](examples/ru/Logging)
+- [Minimal quick-start (EN)](examples/en/MinimalQuickstart) / [(RU)](examples/ru/MinimalQuickstart)
+- [Static facade (EN)](examples/en/StaticFacade) / [(RU)](examples/ru/StaticFacade)
+- [Health checks (EN)](examples/en/HealthChecks) / [(RU)](examples/ru/HealthChecks)
+- [Worker (EN)](examples/en/Worker) / [(RU)](examples/ru/Worker)
+- [Filtering (EN)](examples/en/Filtering) / [(RU)](examples/ru/Filtering)
+- [Multi-tenant (EN)](examples/en/MultiTenant) / [(RU)](examples/ru/MultiTenant)
+- [Custom HttpClient (EN)](examples/en/CustomHttpClient) / [(RU)](examples/ru/CustomHttpClient)
+- [AOT console (EN)](examples/en/AotConsole) / [(RU)](examples/ru/AotConsole)
+- [Polly resilience (EN)](examples/en/Resilience) / [(RU)](examples/ru/Resilience)
 
 ## Field reference
 
