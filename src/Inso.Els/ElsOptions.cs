@@ -9,7 +9,7 @@ namespace Inso.Els
     {
         // ---------- Required ----------
 
-        /// <summary>ELS API base URL, e.g. <c>https://api.example.com/els</c>.</summary>
+        /// <summary>ELS API base URL, e.g. <c>https://api.insoweb.ru/els</c>.</summary>
         public string Endpoint { get; init; } = string.Empty;
 
         /// <summary>API key. Sent according to <see cref="AuthScheme"/>.</summary>

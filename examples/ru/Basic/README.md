@@ -5,7 +5,7 @@
 и корректное завершение.
 
 ```bash
-export ELS_ENDPOINT=https://api.example.com/els
+export ELS_ENDPOINT=https://api.insoweb.ru/els
 export ELS_API_KEY=ваш-api-ключ
 dotnet run --project examples/ru/Basic
 ```

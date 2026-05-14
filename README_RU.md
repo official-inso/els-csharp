@@ -7,6 +7,21 @@ Wire-формат совместим с [Go SDK](https://github.com/official-ins
 
 [English version](README.md)
 
+## Что вы получаете
+
+ELS из коробки даёт админ-панель. Все события, отправленные из вашего .NET
+приложения, попадают сюда — с полнотекстовым поиском, фасетной фильтрацией,
+AI-диагностикой и обнаружением регрессий по версиям.
+
+| | |
+|---|---|
+| ![Список логов](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/01-error-logs-list.png) | ![Карточка события](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/02-event-detail-info.png) |
+| Виртуальная таблица с сайдбаром фильтров (приложение, окружение, **версия**, источник, уровень, браузер, IP, категория). | Полные метаданные события: время, гео, окружение, **версия приложения**, fingerprint, session. |
+| ![AI-диагностика](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/03-error-detail-ai.png) | ![Аналитика](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/04-analytics-dashboard.png) |
+| Stack trace + AI-анализ: что сломалось, где, как чинить. | Хронология, donut'ы, виджет **«Регрессии по версиям»**. |
+| ![API-ключи](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/05-api-keys.png) | ![Избранные](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/07-favorites.png) |
+| Scoped API-ключи (write / read / read-any), окружения live и test, ротация. | Закладки по trace ID — сохраняются между сессиями. |
+
 ## Пакеты
 
 | Пакет | Что внутри |
@@ -36,7 +51,7 @@ using Inso.Els;
 
 await using var client = new ElsClient(new ElsOptions
 {
-    Endpoint = "https://api.example.com/els",
+    Endpoint = "https://api.insoweb.ru/els",
     ApiKey   = "ваш-api-ключ",
     AppSlug  = "my-service",
     DeploymentEnv = "PRODUCTION",
@@ -157,7 +172,7 @@ client.CaptureError(ex, opts);
 new ElsOptions
 {
     // Обязательно
-    Endpoint = "https://api.example.com/els",
+    Endpoint = "https://api.insoweb.ru/els",
     ApiKey   = "...",
 
     // Идентификация (рекомендуется)

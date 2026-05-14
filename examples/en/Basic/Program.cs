@@ -4,7 +4,7 @@
 // critical errors, a health check, and graceful shutdown.
 //
 // Run:
-//   export ELS_ENDPOINT=https://api.example.com/els
+//   export ELS_ENDPOINT=https://api.insoweb.ru/els
 //   export ELS_API_KEY=your-api-key
 //   dotnet run
 
@@ -12,7 +12,7 @@ using Inso.Els;
 
 var options = new ElsOptions
 {
-    Endpoint = Environment.GetEnvironmentVariable("ELS_ENDPOINT") ?? "https://api.example.com/els",
+    Endpoint = Environment.GetEnvironmentVariable("ELS_ENDPOINT") ?? "https://api.insoweb.ru/els",
     ApiKey = Environment.GetEnvironmentVariable("ELS_API_KEY") ?? "your-api-key",
     AppSlug = "my-service",
     DeploymentEnv = "PRODUCTION",

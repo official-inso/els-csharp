@@ -24,7 +24,7 @@ but the migration is mechanical.
 var http = new HttpClient();
 var client = new ELSClient(http, new ELSOptions
 {
-    Endpoint = "https://api.example.com/els",
+    Endpoint = "https://api.insoweb.ru/els",
     ApiKey = "k",
     AppSlug = "svc",
     Retries = 3,
@@ -43,7 +43,7 @@ var resp = await client.SendErrorAsync(new ErrorEntry
 ```csharp
 await using var client = new ElsClient(new ElsOptions
 {
-    Endpoint = "https://api.example.com/els",
+    Endpoint = "https://api.insoweb.ru/els",
     ApiKey = "k",
     AppSlug = "svc",
     MaxRetries = 3,

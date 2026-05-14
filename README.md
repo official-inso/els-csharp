@@ -7,6 +7,21 @@ with exponential backoff, disk-based buffering, ASP.NET Core middleware,
 
 [Русская версия](README_RU.md)
 
+## What you get
+
+ELS ships with a built-in admin dashboard. Every event captured from your .NET
+application shows up there with full-text search, faceted filtering, AI-assisted
+diagnosis, and version-aware regression detection.
+
+| | |
+|---|---|
+| ![Logs list](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/01-error-logs-list.png) | ![Event detail](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/02-event-detail-info.png) |
+| Virtual table with facet sidebar (app, env, **version**, source, level, browser, IP, category). | Full event metadata: timestamps, geo, env, **app version**, fingerprint, session. |
+| ![AI diagnosis](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/03-error-detail-ai.png) | ![Analytics](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/04-analytics-dashboard.png) |
+| Stack trace + AI diagnosis: what broke, where, how to fix. | Timeline, donuts, **version regressions** widget. |
+| ![API keys](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/05-api-keys.png) | ![Favorites](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/07-favorites.png) |
+| Scoped API keys (write / read / read-any), live & test environments, rotation. | Bookmarks for trace IDs that survive across sessions. |
+
 ## Packages
 
 | Package | What it is |
@@ -36,7 +51,7 @@ using Inso.Els;
 
 await using var client = new ElsClient(new ElsOptions
 {
-    Endpoint = "https://api.example.com/els",
+    Endpoint = "https://api.insoweb.ru/els",
     ApiKey   = "your-api-key",
     AppSlug  = "my-service",
     DeploymentEnv = "PRODUCTION",
@@ -159,7 +174,7 @@ Available: `WithUrl`, `WithLevel`, `WithSource`, `WithStack`,
 new ElsOptions
 {
     // Required
-    Endpoint = "https://api.example.com/els",
+    Endpoint = "https://api.insoweb.ru/els",
     ApiKey   = "...",
 
     // Identity (recommended)

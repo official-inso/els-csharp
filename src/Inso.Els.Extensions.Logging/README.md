@@ -4,6 +4,8 @@
 Routes `ILogger` calls to ELS so existing logging code automatically captures
 errors without rewrites.
 
+![ELS dashboard — event detail with AI diagnosis](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/03-error-detail-ai.png)
+
 ```csharp
 using Inso.Els;
 using Inso.Els.Extensions.Logging;

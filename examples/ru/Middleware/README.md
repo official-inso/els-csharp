@@ -3,7 +3,7 @@
 ASP.NET Core minimal API, демонстрирующий `AddEls` + `UseElsExceptionHandling`.
 
 ```bash
-export ELS__Endpoint=https://api.example.com/els
+export ELS__Endpoint=https://api.insoweb.ru/els
 export ELS__ApiKey=ваш-api-ключ
 dotnet run --project examples/ru/Middleware
 ```

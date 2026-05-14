@@ -1,7 +1,7 @@
 // Example: routing Microsoft.Extensions.Logging to ELS.
 //
 // Run:
-//   export ELS__Endpoint=https://api.example.com/els
+//   export ELS__Endpoint=https://api.insoweb.ru/els
 //   export ELS__ApiKey=your-api-key
 //   dotnet run --project examples/en/Logging
 
@@ -46,7 +46,7 @@ internal static class HostHelper
     {
         builder.Services.AddEls(opts =>
         {
-            opts.Endpoint = builder.Configuration["Els:Endpoint"] ?? "https://api.example.com/els";
+            opts.Endpoint = builder.Configuration["Els:Endpoint"] ?? "https://api.insoweb.ru/els";
             opts.ApiKey = builder.Configuration["Els:ApiKey"] ?? "your-api-key";
             opts.AppSlug = "logging-demo";
         });

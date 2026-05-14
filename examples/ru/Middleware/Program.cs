@@ -1,7 +1,7 @@
 // Пример: ASP.NET Core minimal API с middleware Inso.Els.
 //
 // Запуск:
-//   export ELS__Endpoint=https://api.example.com/els
+//   export ELS__Endpoint=https://api.insoweb.ru/els
 //   export ELS__ApiKey=ваш-api-ключ
 //   dotnet run --project examples/ru/Middleware
 //
@@ -17,7 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 // hosted service, который сбрасывает очередь перед остановкой приложения.
 builder.Services.AddEls(opts =>
 {
-    opts.Endpoint = builder.Configuration["Els:Endpoint"] ?? "https://api.example.com/els";
+    opts.Endpoint = builder.Configuration["Els:Endpoint"] ?? "https://api.insoweb.ru/els";
     opts.ApiKey = builder.Configuration["Els:ApiKey"] ?? "ваш-api-ключ";
     opts.AppSlug = "demo-web";
     opts.DeploymentEnv = builder.Environment.EnvironmentName;

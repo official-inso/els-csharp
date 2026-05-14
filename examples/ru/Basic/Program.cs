@@ -5,7 +5,7 @@
 // и корректное завершение работы.
 //
 // Запуск:
-//   export ELS_ENDPOINT=https://api.example.com/els
+//   export ELS_ENDPOINT=https://api.insoweb.ru/els
 //   export ELS_API_KEY=ваш-api-ключ
 //   dotnet run
 
@@ -13,7 +13,7 @@ using Inso.Els;
 
 var options = new ElsOptions
 {
-    Endpoint = Environment.GetEnvironmentVariable("ELS_ENDPOINT") ?? "https://api.example.com/els",
+    Endpoint = Environment.GetEnvironmentVariable("ELS_ENDPOINT") ?? "https://api.insoweb.ru/els",
     ApiKey = Environment.GetEnvironmentVariable("ELS_API_KEY") ?? "ваш-api-ключ",
     AppSlug = "my-service",
     DeploymentEnv = "PRODUCTION",
