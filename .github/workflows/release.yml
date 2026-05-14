@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+jobs:
+  pack-and-push:
+    name: Pack and push to NuGet
+    runs-on: ubuntu-latest
+    env:
+      NUGET_FEED: https://api.nuget.org/v3/index.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 6
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Extract version from tag
+        run: echo "PKG_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore -p:Version=$PKG_VERSION
+
+      - name: Test
+        run: dotnet test -c Release --no-build
+
+      - name: Pack
+        run: |
+          dotnet pack src/Inso.Els/Inso.Els.csproj -c Release --no-build -p:Version=$PKG_VERSION -o nupkgs
+          dotnet pack src/Inso.Els.AspNetCore/Inso.Els.AspNetCore.csproj -c Release --no-build -p:Version=$PKG_VERSION -o nupkgs
+          dotnet pack src/Inso.Els.Extensions.Logging/Inso.Els.Extensions.Logging.csproj -c Release --no-build -p:Version=$PKG_VERSION -o nupkgs
+
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          for nupkg in nupkgs/*.nupkg; do
+            dotnet nuget push "$nupkg" --api-key "$NUGET_API_KEY" --source "$NUGET_FEED" --skip-duplicate
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: nupkgs/

@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+
+*.cs    diff=csharp
+*.csproj text
+*.props  text
+*.targets text
+*.sln    text eol=crlf

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;netstandard2.1;net6.0;net8.0</TargetFrameworks>
+    <RootNamespace>Inso.Els</RootNamespace>
+    <AssemblyName>Inso.Els</AssemblyName>
+
+    <PackageId>Inso.Els</PackageId>
+    <Title>Inso.Els</Title>
+    <Description>High-performance .NET SDK for ELS (Error Logs Service). Async batching, retry, disk buffering, zero non-standard runtime dependencies.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Inso.Els.Tests" />
+    <InternalsVisibleTo Include="Inso.Els.AspNetCore" />
+    <InternalsVisibleTo Include="Inso.Els.AspNetCore.Tests" />
+    <InternalsVisibleTo Include="Inso.Els.Extensions.Logging" />
+    <InternalsVisibleTo Include="Inso.Els.Extensions.Logging.Tests" />
+  </ItemGroup>
+
+</Project>

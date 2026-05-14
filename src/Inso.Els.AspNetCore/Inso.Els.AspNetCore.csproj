@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <RootNamespace>Inso.Els.AspNetCore</RootNamespace>
+    <AssemblyName>Inso.Els.AspNetCore</AssemblyName>
+
+    <PackageId>Inso.Els.AspNetCore</PackageId>
+    <Title>Inso.Els.AspNetCore</Title>
+    <Description>ASP.NET Core integration for Inso.Els: exception-capturing middleware, dependency-injection extensions, hosted service for graceful flush.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Inso.Els\Inso.Els.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Inso.Els.AspNetCore.Tests" />
+  </ItemGroup>
+
+</Project>

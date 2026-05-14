@@ -1,0 +1,38 @@
+# .NET build
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / Rider
+.vs/
+.idea/
+.vscode/
+*.swp
+
+# Test results / coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+
+# NuGet
+*.nupkg
+*.snupkg
+nupkgs/
+.nuget/
+
+# Build outputs
+[Dd]ebug/
+[Rr]elease/
+
+# Build version
+.version
+
+# OS
+.DS_Store
+Thumbs.db
