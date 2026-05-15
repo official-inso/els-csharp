@@ -11,22 +11,17 @@
 middleware для ASP.NET Core, провайдер для `Microsoft.Extensions.Logging`.
 Wire-формат совместим с [Go SDK](https://github.com/official-inso/els-go).
 
-[English version](README.md)
+> 🇬🇧 [English version → README.md](README.md) &nbsp;•&nbsp; 📚 [Обзор всех SDK → ../README_RU.md](../README_RU.md)
 
 ## Что вы получаете
 
-ELS из коробки даёт админ-панель. Все события, отправленные из вашего .NET
-приложения, попадают сюда — с полнотекстовым поиском, фасетной фильтрацией,
-AI-диагностикой и обнаружением регрессий по версиям.
+Каждое событие попадает во встроенную панель с полнотекстовым поиском, фасетной фильтрацией, AI-диагностикой и виджетом регрессий по версиям.
 
-| | |
-|---|---|
-| ![Список логов](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/01-error-logs-list.png) | ![Карточка события](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/02-event-detail-info.png) |
-| Виртуальная таблица с сайдбаром фильтров (приложение, окружение, **версия**, источник, уровень, браузер, IP, категория). | Полные метаданные события: время, гео, окружение, **версия приложения**, fingerprint, session. |
-| ![AI-диагностика](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/03-error-detail-ai.png) | ![Аналитика](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/04-analytics-dashboard.png) |
-| Stack trace + AI-анализ: что сломалось, где, как чинить. | Хронология, donut'ы, виджет **«Регрессии по версиям»**. |
-| ![API-ключи](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/05-api-keys.png) | ![Избранные](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/07-favorites.png) |
-| Scoped API-ключи (write / read / read-any), окружения live и test, ротация. | Закладки по trace ID — сохраняются между сессиями. |
+![Превью панели ELS](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/01-error-logs-list.png)
+
+→ **[Полный обзор UI с 4 скриншотами](../README_RU.md#что-вы-получаете)**
+
+Ещё нет API-ключа? **[Зарегистрируйтесь на lk.insoweb.ru](https://lk.insoweb.ru)** — займёт минуту.
 
 ## Пакеты
 
@@ -305,6 +300,230 @@ if (issues.Count > 0) throw new InvalidOperationException(string.Join("; ", issu
 | Сэмплинг без потери critical | `SampleRate = 0.1` (с `AlwaysCaptureCritical = true`) |
 | Подписаться на внутренние метрики | `client.StatsChanged += (_, s) => ...` |
 
+## Миграция
+
+### С Serilog
+
+**Было:**
+
+```csharp
+using Serilog;
+using Serilog.Sinks.Http;
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Http("https://logs.example.com/ingest", queueLimitBytes: null)
+    .CreateLogger();
+
+Log.Information("User {UserId} logged in", 42);
+Log.Error(ex, "Payment failed");
+```
+
+**Стало:**
+
+```csharp
+using Inso.Els;
+
+await using var client = new ElsClient(new ElsOptions
+{
+    Endpoint = "https://api.insoweb.ru/els",
+    ApiKey   = Environment.GetEnvironmentVariable("ELS_API_KEY")!,
+    AppSlug  = "my-service",
+    MinLevel = ElsLevel.Info,
+});
+
+client.CaptureMessage("User logged in", ElsLevel.Info,
+    new CaptureOptions().WithMetaItem("userId", "42"));
+client.CaptureError(ex, new CaptureOptions { Url = "/api/pay", Level = ElsLevel.Error });
+```
+
+Чтобы оставить call-сайты на `ILogger<T>` нетронутыми — подключите провайдер `Inso.Els.Extensions.Logging` (см. Быстрый старт).
+
+| Serilog | ELS | Заметки |
+|---|---|---|
+| `WriteTo.X(...)` sinks | Встроенный HTTP-транспорт | Одна цель, без sink-пакетов |
+| `Log.Information(template, args)` | `client.CaptureMessage(...)` или `ILogger.LogInformation` через провайдер | Шаблоны → meta-поля |
+| `Enrich.FromLogContext()` | `client.User = ...` + `CaptureOptions.WithMeta...` | |
+| `WriteTo.File("logs.txt", ...)` | Server-side retention | Ротация файлов — вне scope |
+| Структурированные свойства (`{UserId}`) | `CaptureOptions.WithMetaItem("userId", "...")` | Или через formatter `Microsoft.Extensions.Logging` |
+
+**Подводные камни:**
+
+- Destructuring Serilog (`{@User}`) аналога не имеет — flatten через `WithMetaItem` или `WithMeta`.
+- Pretty-console — не задача SDK; для локального dev используйте `Console`-провайдер `Microsoft.Extensions.Logging`.
+
+---
+
+### С NLog
+
+**Было:**
+
+```xml
+<!-- NLog.config -->
+<targets>
+  <target xsi:type="Network" name="net" address="tcp://logs.example.com:514" />
+</targets>
+<rules>
+  <logger name="*" minlevel="Info" writeTo="net" />
+</rules>
+```
+
+```csharp
+using NLog;
+private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+Logger.Info("User {0} logged in", userId);
+Logger.Error(ex, "Payment failed");
+```
+
+**Стало:**
+
+```csharp
+using Inso.Els;
+using Inso.Els.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+
+var services = new ServiceCollection()
+    .AddLogging(b => b.AddEls(o =>
+    {
+        o.Endpoint = "https://api.insoweb.ru/els";
+        o.ApiKey   = Environment.GetEnvironmentVariable("ELS_API_KEY")!;
+        o.AppSlug  = "my-service";
+        o.MinLevel = ElsLevel.Info;
+    }))
+    .BuildServiceProvider();
+
+var logger = services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("User {UserId} logged in", userId);
+logger.LogError(ex, "Payment failed");
+```
+
+| NLog | ELS | Заметки |
+|---|---|---|
+| `LogManager.GetCurrentClassLogger()` | `ILogger<T>` через DI | Стандартный `Microsoft.Extensions.Logging` |
+| Targets в `NLog.config` | Встроенный HTTP-транспорт | Одна цель, без XML |
+| Layout renderers (`${aspnet-...}`) | `CaptureOptions.WithHttpContext(...)` | Через `Inso.Els.AspNetCore` |
+| `minlevel="Info"` | `o.MinLevel = ElsLevel.Info` | То же |
+
+**Подводные камни:**
+
+- File targets / архивы NLog аналога не имеют — retention на сервере.
+- Async wrappers (`AsyncTargetWrapper`) не нужны — SDK async по умолчанию.
+
+---
+
+### С log4net
+
+**Было:**
+
+```xml
+<!-- log4net.config -->
+<appender name="Http" type="log4net.Appender.HttpAppender">
+  <url value="https://logs.example.com/ingest" />
+</appender>
+<root>
+  <level value="INFO" />
+  <appender-ref ref="Http" />
+</root>
+```
+
+```csharp
+private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
+Logger.Info("User logged in");
+Logger.Error("Payment failed", ex);
+```
+
+**Стало:**
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Inso.Els.Extensions.Logging;
+
+services.AddLogging(b => b.AddEls(o =>
+{
+    o.Endpoint = "https://api.insoweb.ru/els";
+    o.ApiKey   = "...";
+    o.AppSlug  = "my-service";
+    o.MinLevel = ElsLevel.Info;
+}));
+
+logger.LogInformation("User logged in");
+logger.LogError(ex, "Payment failed");
+```
+
+| log4net | ELS | Заметки |
+|---|---|---|
+| `LogManager.GetLogger(typeof(T))` | `ILogger<T>` через DI | Современная .NET-идиома |
+| XML-appenders | Code-based `AddEls(...)` | Одна цель |
+| `%property{X}` | `CaptureOptions.WithMetaItem("x", ...)` | |
+| Rolling file appender | n/a | Retention на сервере |
+
+**Подводные камни:**
+
+- Сначала переход на `Microsoft.Extensions.Logging` оставляет остальной стек нетронутым — затем `AddEls(...)` в одну строчку.
+- MDC (`ThreadContext`) ложится на `CaptureOptions.WithMeta(...)` per call или `client.User` для стабильных значений.
+
+---
+
+### С Sentry.NET
+
+**Было:**
+
+```csharp
+using SentrySdk = Sentry.SentrySdk;
+using SentryOptions = Sentry.SentryOptions;
+
+using (SentrySdk.Init(o =>
+{
+    o.Dsn = "https://public@sentry.example.com/1";
+    o.Environment = "production";
+    o.Release = "1.2.3";
+}))
+{
+    SentrySdk.CaptureException(ex);
+    SentrySdk.CaptureMessage("payment timeout", SentryLevel.Warning);
+    SentrySdk.ConfigureScope(s => s.User = new Sentry.User { Id = "42" });
+}
+```
+
+**Стало:**
+
+```csharp
+using Inso.Els;
+
+await using var client = new ElsClient(new ElsOptions
+{
+    Endpoint = "https://api.insoweb.ru/els",
+    ApiKey   = Environment.GetEnvironmentVariable("ELS_API_KEY")!,
+    AppSlug  = "my-service",
+    DeploymentEnv = "PRODUCTION",
+    AppVersion = "1.2.3",
+});
+
+client.User = new UserContext { Id = "42" };
+client.CaptureError(ex);
+client.CaptureMessage("payment timeout", ElsLevel.Warning);
+```
+
+| Sentry | ELS | Заметки |
+|---|---|---|
+| `Dsn` | `Endpoint` + `ApiKey` + `AppSlug` | Три явных поля |
+| `Environment` | `DeploymentEnv` | Фиксированный enum |
+| `Release` | `AppVersion` | Любая строка ≤128 |
+| `CaptureException(ex)` | `client.CaptureError(ex)` | |
+| `CaptureMessage(msg, level)` | `client.CaptureMessage(msg, level)` | |
+| `ConfigureScope(s => s.User = ...)` | `client.User = new UserContext { ... }` | |
+| `BeforeSend` | `ElsOptions.BeforeSend` / `BeforeSendAsync` | |
+| Source maps / `SymbolicateException` | не предоставляется | Sentry оставляйте рядом, если критично |
+| Performance / tracing | не предоставляется | ELS — про логи |
+
+**Подводные камни:**
+
+- `SentryHttpMessageHandler` и ASP.NET Core middleware в Sentry привязаны к tracing — отключайте при переходе.
+- Для парности захвата в ASP.NET Core используйте `app.UseElsExceptionHandling()` из `Inso.Els.AspNetCore`.
+
+---
+
 ## Примеры
 
 - [Базовый (EN)](examples/en/Basic) / [Базовый (RU)](examples/ru/Basic)
@@ -319,6 +538,54 @@ if (issues.Count > 0) throw new InvalidOperationException(string.Join("; ", issu
 - [Custom HttpClient (EN)](examples/en/CustomHttpClient) / [(RU)](examples/ru/CustomHttpClient)
 - [AOT-консоль (EN)](examples/en/AotConsole) / [(RU)](examples/ru/AotConsole)
 - [Polly resilience (EN)](examples/en/Resilience) / [(RU)](examples/ru/Resilience)
+
+## Почему ELS
+
+ELS для .NET — сфокусированный SaaS для логирования, а не observability-комбайн. Оптимизирован под скорость захвата, AI-диагностику и дешевизну интеграции.
+
+- **Меньше веса.** Одна `netstandard2.0`-сборка, без транзитивных зависимостей.
+- **Ноль внешних API.** Только `POST /errors[/batch]` и `GET /health`.
+- **AI-диагностика** на каждом stack trace, из коробки — без аддонов.
+- **5 минут интеграции.** `dotnet add package`, API-ключ — готово.
+- **Прозрачные тарифы.** Цены в личном кабинете.
+
+| Возможность | ELS | Sentry | Datadog | Loki | LogRocket |
+|---|---|---|---|---|---|
+| AI на stack-trace | Встроено | Платный аддон | Платный аддон | Нет | Нет |
+| Zero-dep SDK | Да | Нет | Нет | Нет | Нет |
+| Free-tier retention | 24ч | 30д (лимит) | Только триал | Self-cost | 3–30д |
+| Время setup | ~5 мин | 10–20 мин | 30–60 мин | Часы | 10–20 мин |
+
+ELS **не предоставляет**: full APM / tracing, source-map upload, session replay, frontend RUM, метрики инфраструктуры. Парьте с Grafana / Datadog или оставляйте Sentry, если критично.
+
+→ **Регистрация на [lk.insoweb.ru](https://lk.insoweb.ru)** для API-ключа.
+
+## Другие ELS SDK
+
+Тот же wire-формат, та же панель — выбирайте по стеку.
+
+**.NET** (этот репо)
+- `Inso.Els` — основной SDK
+- `Inso.Els.AspNetCore` — middleware для ASP.NET Core
+- `Inso.Els.Extensions.Logging` — `ILoggerProvider`
+
+**Node.js**
+- [`@inso_web/els-client`](../js/README_RU.md) — базовый TS / Node / browser клиент
+- [`@inso_web/els-express`](../express/README_RU.md) — Express middleware
+- [`@inso_web/els-next`](../next/README_RU.md) — хелперы Next.js
+- [`@inso_web/els-nest`](../nest/README_RU.md) — NestJS module
+- [`@inso_web/els-react`](../react/README_RU.md) — React Provider, hooks, ErrorBoundary
+- [`@inso_web/els-vue`](../vue/README_RU.md) — Vue 3 plugin
+
+**Другие стеки**
+- [`io.github.official-inso:els-core`](../java/README_RU.md) — Java + Spring Boot starter + SLF4J
+- [`github.com/official-inso/els-go`](../els-go/README_RU.md) — Go
+
+→ **Обзор и сравнение:** [../README_RU.md](../README_RU.md) · [github.com/official-inso/els-go/blob/main/sdks/README_RU.md](https://github.com/official-inso/els-go/blob/main/sdks/README_RU.md)
+
+## Тарифы
+
+Free-тариф — **хранение логов 24 часа**. Полный прайс на **[lk.insoweb.ru](https://lk.insoweb.ru)**.
 
 ## Справочник полей
 
