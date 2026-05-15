@@ -30,21 +30,51 @@ diagnosis, and version-aware regression detection.
 
 ## Packages
 
-| Package | What it is |
-|---|---|
-| `Inso.Els` | Core SDK: client, options, batching worker, transport, disk buffer. |
-| `Inso.Els.AspNetCore` | ASP.NET Core middleware + DI extensions. |
-| `Inso.Els.Extensions.Logging` | `ILoggerProvider` that routes log records to ELS. |
+All three packages are published on [nuget.org](https://www.nuget.org/profiles/inso) under the `Inso.*` prefix.
+
+| Package | What it is | NuGet |
+|---|---|---|
+| `Inso.Els` | Core SDK: client, options, batching worker, transport, disk buffer. | [nuget.org/packages/Inso.Els](https://www.nuget.org/packages/Inso.Els) |
+| `Inso.Els.AspNetCore` | ASP.NET Core middleware + DI extensions. | [nuget.org/packages/Inso.Els.AspNetCore](https://www.nuget.org/packages/Inso.Els.AspNetCore) |
+| `Inso.Els.Extensions.Logging` | `ILoggerProvider` that routes log records to ELS. | [nuget.org/packages/Inso.Els.Extensions.Logging](https://www.nuget.org/packages/Inso.Els.Extensions.Logging) |
 
 ## Install
 
+### .NET CLI
+
 ```bash
 dotnet add package Inso.Els
-dotnet add package Inso.Els.AspNetCore           # optional
-dotnet add package Inso.Els.Extensions.Logging   # optional
+dotnet add package Inso.Els.AspNetCore           # optional, for ASP.NET Core
+dotnet add package Inso.Els.Extensions.Logging   # optional, for ILogger
 ```
 
-Target frameworks:
+### Package Manager Console (Visual Studio)
+
+```powershell
+Install-Package Inso.Els
+Install-Package Inso.Els.AspNetCore
+Install-Package Inso.Els.Extensions.Logging
+```
+
+### `PackageReference` in `.csproj`
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Inso.Els"                       Version="0.2.1" />
+  <PackageReference Include="Inso.Els.AspNetCore"            Version="0.2.1" />
+  <PackageReference Include="Inso.Els.Extensions.Logging"    Version="0.2.1" />
+</ItemGroup>
+```
+
+### Paket
+
+```
+nuget Inso.Els
+nuget Inso.Els.AspNetCore
+nuget Inso.Els.Extensions.Logging
+```
+
+### Target frameworks
 
 - `Inso.Els` — `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`.
 - `Inso.Els.AspNetCore` — `net6.0`, `net8.0`.

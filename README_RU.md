@@ -30,21 +30,51 @@ AI-диагностикой и обнаружением регрессий по 
 
 ## Пакеты
 
-| Пакет | Что внутри |
-|---|---|
-| `Inso.Els` | Основной SDK: клиент, опции, batching-worker, transport, disk-buffer. |
-| `Inso.Els.AspNetCore` | Middleware для ASP.NET Core + DI-расширения. |
-| `Inso.Els.Extensions.Logging` | `ILoggerProvider`, направляющий записи в ELS. |
+Все три пакета опубликованы на [nuget.org](https://www.nuget.org/profiles/inso) с префиксом `Inso.*`.
+
+| Пакет | Что внутри | NuGet |
+|---|---|---|
+| `Inso.Els` | Основной SDK: клиент, опции, batching-worker, transport, disk-buffer. | [nuget.org/packages/Inso.Els](https://www.nuget.org/packages/Inso.Els) |
+| `Inso.Els.AspNetCore` | Middleware для ASP.NET Core + DI-расширения. | [nuget.org/packages/Inso.Els.AspNetCore](https://www.nuget.org/packages/Inso.Els.AspNetCore) |
+| `Inso.Els.Extensions.Logging` | `ILoggerProvider`, направляющий записи в ELS. | [nuget.org/packages/Inso.Els.Extensions.Logging](https://www.nuget.org/packages/Inso.Els.Extensions.Logging) |
 
 ## Установка
 
+### .NET CLI
+
 ```bash
 dotnet add package Inso.Els
-dotnet add package Inso.Els.AspNetCore           # опционально
-dotnet add package Inso.Els.Extensions.Logging   # опционально
+dotnet add package Inso.Els.AspNetCore           # опционально, для ASP.NET Core
+dotnet add package Inso.Els.Extensions.Logging   # опционально, для ILogger
 ```
 
-Target frameworks:
+### Package Manager Console (Visual Studio)
+
+```powershell
+Install-Package Inso.Els
+Install-Package Inso.Els.AspNetCore
+Install-Package Inso.Els.Extensions.Logging
+```
+
+### `PackageReference` в `.csproj`
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Inso.Els"                       Version="0.2.1" />
+  <PackageReference Include="Inso.Els.AspNetCore"            Version="0.2.1" />
+  <PackageReference Include="Inso.Els.Extensions.Logging"    Version="0.2.1" />
+</ItemGroup>
+```
+
+### Paket
+
+```
+nuget Inso.Els
+nuget Inso.Els.AspNetCore
+nuget Inso.Els.Extensions.Logging
+```
+
+### Target frameworks
 
 - `Inso.Els` — `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`.
 - `Inso.Els.AspNetCore` — `net6.0`, `net8.0`.

@@ -6,6 +6,20 @@ backoff, disk-based buffering, zero non-standard runtime dependencies.
 ![ELS dashboard — logs list](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/01-error-logs-list.png)
 ![ELS dashboard — event detail with AI diagnosis](https://raw.githubusercontent.com/official-inso/els-go/main/docs/screenshots/03-error-detail-ai.png)
 
+## Install
+
+```bash
+dotnet add package Inso.Els
+```
+
+or in `.csproj`:
+
+```xml
+<PackageReference Include="Inso.Els" Version="0.2.1" />
+```
+
+## Quick start
+
 ```csharp
 using Inso.Els;
 
@@ -21,5 +35,13 @@ client.CaptureError(ex, new CaptureOptions { Url = "/api/users" });
 await client.FlushAsync();
 ```
 
-See the [project repository](https://github.com/official-inso/els-csharp) for full
-documentation, examples, and migration notes.
+## Companion packages
+
+- [`Inso.Els.AspNetCore`](https://www.nuget.org/packages/Inso.Els.AspNetCore) — exception-capturing middleware + `services.AddEls(...)` for ASP.NET Core.
+- [`Inso.Els.Extensions.Logging`](https://www.nuget.org/packages/Inso.Els.Extensions.Logging) — `ILoggerProvider` that routes `Microsoft.Extensions.Logging` records to ELS.
+
+## Links
+
+- Source & full documentation: <https://github.com/official-inso/els-csharp>
+- NuGet: <https://www.nuget.org/packages/Inso.Els>
+- License: MIT
