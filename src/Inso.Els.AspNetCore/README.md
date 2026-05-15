@@ -53,3 +53,59 @@ app.Run();
 - Source & full documentation: <https://github.com/official-inso/els-csharp>
 - NuGet: <https://www.nuget.org/packages/Inso.Els.AspNetCore>
 - License: MIT
+
+---
+
+# Inso.Els.AspNetCore (RU)
+
+Интеграция ASP.NET Core для [Inso.Els](https://www.nuget.org/packages/Inso.Els):
+
+- Middleware, перехватывающий исключения (`UseElsExceptionHandling`).
+- `IServiceCollection.AddEls(...)` для регистрации в DI.
+- Интеграция с `Microsoft.Extensions.Diagnostics.HealthChecks` (`AddEls()` + опциональный `timeout`).
+- `IHostedService`, сбрасывающий очередь SDK при корректном завершении.
+
+## Установка
+
+```bash
+dotnet add package Inso.Els
+dotnet add package Inso.Els.AspNetCore
+```
+
+или в `.csproj`:
+
+```xml
+<PackageReference Include="Inso.Els"            Version="0.2.1" />
+<PackageReference Include="Inso.Els.AspNetCore" Version="0.2.1" />
+```
+
+## Быстрый старт
+
+```csharp
+using Inso.Els;
+using Inso.Els.AspNetCore;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddEls(opts =>
+{
+    opts.Endpoint = "https://api.insoweb.ru/els";
+    opts.ApiKey   = builder.Configuration["Els:ApiKey"]!;
+    opts.AppSlug  = "my-web-app";
+});
+
+var app = builder.Build();
+app.UseElsExceptionHandling();
+app.MapGet("/", () => "hello");
+app.Run();
+```
+
+## Сопутствующие пакеты
+
+- [`Inso.Els`](https://www.nuget.org/packages/Inso.Els) — основной SDK (обязательно).
+- [`Inso.Els.Extensions.Logging`](https://www.nuget.org/packages/Inso.Els.Extensions.Logging) — `ILoggerProvider`, маршрутизирующий записи `Microsoft.Extensions.Logging` в ELS.
+
+## Ссылки
+
+- Исходники и полная документация: <https://github.com/official-inso/els-csharp>
+- NuGet: <https://www.nuget.org/packages/Inso.Els.AspNetCore>
+- Лицензия: MIT

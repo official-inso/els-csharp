@@ -51,3 +51,57 @@ builder.Logging.AddEls(o => o.MinLevel = ElsLevel.Warning);
 - Source & full documentation: <https://github.com/official-inso/els-csharp>
 - NuGet: <https://www.nuget.org/packages/Inso.Els.Extensions.Logging>
 - License: MIT
+
+---
+
+# Inso.Els.Extensions.Logging (RU)
+
+Провайдер `Microsoft.Extensions.Logging` для [Inso.Els](https://www.nuget.org/packages/Inso.Els).
+Маршрутизирует вызовы `ILogger` в ELS — существующий код логирования
+автоматически захватывает ошибки без переписывания.
+
+## Установка
+
+```bash
+dotnet add package Inso.Els
+dotnet add package Inso.Els.Extensions.Logging
+```
+
+или в `.csproj`:
+
+```xml
+<PackageReference Include="Inso.Els"                    Version="0.2.1" />
+<PackageReference Include="Inso.Els.Extensions.Logging" Version="0.2.1" />
+```
+
+## Быстрый старт
+
+```csharp
+using Inso.Els;
+using Inso.Els.Extensions.Logging;
+using Inso.Els.AspNetCore; // для services.AddEls()
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddEls(opts =>
+{
+    opts.Endpoint = builder.Configuration["Els:Endpoint"]!;
+    opts.ApiKey   = builder.Configuration["Els:ApiKey"]!;
+});
+
+builder.Logging.AddEls(o => o.MinLevel = ElsLevel.Warning);
+
+// Существующие вызовы логгера автоматически попадут в ELS:
+//   _logger.LogError(ex, "не удалось загрузить пользователя {UserId}", 42);
+```
+
+## Сопутствующие пакеты
+
+- [`Inso.Els`](https://www.nuget.org/packages/Inso.Els) — основной SDK (обязательно).
+- [`Inso.Els.AspNetCore`](https://www.nuget.org/packages/Inso.Els.AspNetCore) — middleware для перехвата исключений + DI.
+
+## Ссылки
+
+- Исходники и полная документация: <https://github.com/official-inso/els-csharp>
+- NuGet: <https://www.nuget.org/packages/Inso.Els.Extensions.Logging>
+- Лицензия: MIT
